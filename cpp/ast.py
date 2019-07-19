@@ -614,6 +614,10 @@ class TypeConverter(object):
 
         template_count = 0
         for s in tokens:
+            if (s.name != ',') and default:
+                default.append(s)
+                continue
+
             if not first_token:
                 first_token = s
             if s.name == '<':
@@ -642,8 +646,6 @@ class TypeConverter(object):
             elif s.name == '=':
                 # Got a default value.  Add any value (None) as a flag.
                 default.append(None)
-            elif default:
-                default.append(s)
             else:
                 type_modifiers.append(s)
         AddParameter(tokens[-1].end)
