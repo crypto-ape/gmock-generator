@@ -118,18 +118,44 @@ def _GenerateMethods(output_lines, source, class_node):
           # intervening whitespace, e.g.: int\nBar
           args = re.sub('  +', ' ', args_strings.replace('\n', ' '))
 
+      # TODO: make formatting configurable
       # Create the mock method definition.
-      output_lines.extend(['%s%s(%s,' % (indent, mock_method_macro, node.name),
-                           '%s%s(%s));' % (indent*3, return_type, args)])
+      output_lines.extend(['%s%s(%s, %s(%s));' % (indent, mock_method_macro, node.name, return_type, args)])
+
+
+def is_interface(node):
+    if not isinstance(node, ast.Class) or not node.body:
+        return False
+
+    class_node = node
+
+    method_count = 0
+    for sub_node in class_node.body:
+        if isinstance(sub_node, ast.Function):
+            modifiers = sub_node.modifiers
+            is_pure_virtual = (modifiers & ast.FUNCTION_PURE_VIRTUAL) > 0
+            is_virtual_destructor = (modifiers & (ast.FUNCTION_DTOR | ast.FUNCTION_VIRTUAL)) > 0
+            is_constructor = (modifiers & ast.FUNCTION_CTOR) > 0
+            if not is_pure_virtual and not is_virtual_destructor:
+                return False
+            if is_constructor:
+              return False
+            if is_pure_virtual:
+                method_count += 1
+
+    # at least one function is pure virtual
+    if method_count == 0:
+        return False
+
+    return True
 
 
 def _GenerateMocks(filename, source, ast_list, desired_class_names):
   processed_class_names = set()
   lines = []
   for node in ast_list:
-    if (isinstance(node, ast.Class) and node.body and
-        # desired_class_names being None means that all classes are selected.
-        (not desired_class_names or node.name in desired_class_names)):
+    # desired_class_names being None means that all classes are selected.
+    if is_interface(node) and (not desired_class_names or node.name in desired_class_names):
       class_name = node.name
       parent_name = class_name
       processed_class_names.add(class_name)
