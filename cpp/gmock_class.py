@@ -104,7 +104,7 @@ def _GenerateMethods(output_lines, source, class_node):
         # preserve parameter name when reconstructing parameter text from
         # the AST.
         if len([param for param in node.parameters if param.default]) > 0:
-          args = ', '.join(param.type.name for param in node.parameters)
+          args = ', '.join(param.ToString() for param in node.parameters)
         else:
           # Get the full text of the parameters from the start
           # of the first parameter to the end of the last parameter.
