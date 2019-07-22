@@ -37,21 +37,26 @@ if __name__ == '__main__':
     parser.add_argument('input_path', metavar='INPUT', type=str, nargs=1, help='Input directory path')
     parser.add_argument('output_path', metavar='OUTPUT', type=str, nargs=1, help='Output directory path')
     parser.add_argument('-E', metavar='EXCLUDE', nargs='*', help='Exclude path from generation')
+    parser.add_argument('-j', action='store_true', help='Junk paths (do not make directories)')
     args = parser.parse_args()
 
     input_path = args.input_path[0]
     output_path = args.output_path[0]
     exclude_paths = [os.path.normpath(exclude) for exclude in args.E] if args.E else None
+    create_directories = not args.j
 
-    # TODO: keep directory structure on output
     for r, d, f in os.walk(input_path):
         relative_path = os.path.normpath(r[len(input_path):])
         if exclude_paths and is_subdir(relative_path, exclude_paths):
             continue
 
+        output_dir = output_path
+        if create_directories:
+            output_dir = os.path.normpath(os.path.join(output_path, relative_path))
+
         for filename in f:
             input_filepath = os.path.normpath(os.path.join(r, filename))
-            output_filepath = os.path.normpath(os.path.join(output_path, "mock_" + filename))
+            output_filepath = os.path.normpath(os.path.join(output_dir, "mock_" + filename))
 
             print("Processing file: %s" % input_filepath)
 
@@ -68,6 +73,8 @@ if __name__ == '__main__':
             str_out = output.getvalue()
 
             if len(str_out) > 0:
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
 
                 includes = build_include_header(relative_path, filename)
 
