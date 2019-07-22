@@ -65,9 +65,7 @@ if __name__ == '__main__':
 
             try:
                 gmock_class.main(["../gmock_class", input_filepath])
-            except:
-                # TODO: write failed path to some output file
-                # 'No class found in' is good exception...other might not be...
+            except SystemExit as e:
                 pass
 
             str_out = output.getvalue()
