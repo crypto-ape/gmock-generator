@@ -1,2 +1,4 @@
 .idea
 venv
+cpp/__pycache__
+cpp/*.pyc

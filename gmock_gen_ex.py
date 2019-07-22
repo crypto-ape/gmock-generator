@@ -2,6 +2,7 @@ import os
 import sys
 from cpp import gmock_class
 from cStringIO import StringIO
+import argparse
 
 header_template = \
 """
@@ -19,26 +20,43 @@ This file has been generated using gmock_gen utility.
 
 
 def build_include_header(rel_dir, include_path):
-    if rel_dir:
-        path = rel_dir + "/" + include_path
-        return header_template % (path)
-    else:
-        return header_template % (include_path)
+    path = os.path.join(rel_dir, include_path).replace('\\', '/')
+    return header_template % (path)
+
+
+def is_subdir(dir, dir_list):
+    for d in dir_list:
+        if dir.startswith(d):
+            return True
+    return False
 
 
 if __name__ == '__main__':
 
-    args = sys.argv
+    parser = argparse.ArgumentParser(description="Utility to generate mockups for all c++ interfaces in the specified directory.")
+    parser.add_argument('input_path', metavar='INPUT', type=str, nargs=1, help='Input directory path')
+    parser.add_argument('output_path', metavar='OUTPUT', type=str, nargs=1, help='Output directory path')
+    parser.add_argument('-E', metavar='EXCLUDE', nargs='*', help='Exclude path from generation')
+    parser.add_argument('-j', action='store_true', help='Junk paths (do not make directories)')
+    args = parser.parse_args()
 
-    input_path = args[1]
-    output_path = args[2]
+    input_path = args.input_path[0]
+    output_path = args.output_path[0]
+    exclude_paths = [os.path.normpath(exclude) for exclude in args.E] if args.E else None
+    create_directories = not args.j
 
-    # TODO: filter unwanted directories
-    # TODO: keep directory structure on output
     for r, d, f in os.walk(input_path):
+        relative_path = os.path.normpath(r[len(input_path):])
+        if exclude_paths and is_subdir(relative_path, exclude_paths):
+            continue
+
+        output_dir = output_path
+        if create_directories:
+            output_dir = os.path.normpath(os.path.join(output_path, relative_path))
+
         for filename in f:
-            input_filepath = os.path.join(r, filename)
-            output_filepath = os.path.join(output_path, "mock_" + filename)
+            input_filepath = os.path.normpath(os.path.join(r, filename))
+            output_filepath = os.path.normpath(os.path.join(output_dir, "mock_" + filename))
 
             print("Processing file: %s" % input_filepath)
 
@@ -47,16 +65,16 @@ if __name__ == '__main__':
 
             try:
                 gmock_class.main(["../gmock_class", input_filepath])
-            except:
-                # TODO: write failed path to some output file
-                # 'No class found in' is good exception...other might not be...
+            except SystemExit as e:
                 pass
 
             str_out = output.getvalue()
 
             if len(str_out) > 0:
-                relative_dir = r[len(input_path):]
-                includes = build_include_header(relative_dir, filename)
+                if not os.path.exists(output_dir):
+                    os.makedirs(output_dir)
+
+                includes = build_include_header(relative_path, filename)
 
                 f = open(output_filepath, 'w')
                 f.write(includes)
