@@ -40,6 +40,8 @@ if __name__ == '__main__':
     parser.add_argument('-j', action='store_true', help='Junk paths (do not make directories)')
     args = parser.parse_args()
 
+    #TODO: fix problem when input file doesn't end with (back)slash
+
     input_path = args.input_path[0]
     output_path = args.output_path[0]
     exclude_paths = [os.path.normpath(exclude) for exclude in args.E] if args.E else None
@@ -76,7 +78,7 @@ if __name__ == '__main__':
 
                 includes = build_include_header(relative_path, filename)
 
-                f = open(output_filepath, 'w')
+                f = open(output_filepath, 'wb')
                 f.write(includes)
                 f.write(str_out)
                 f.close()
