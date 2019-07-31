@@ -48,6 +48,16 @@ _VERSION = (1, 0, 1)  # The version of this script.
 _INDENT = 2
 
 
+def _GenerateDestructor(output_lines, class_name):
+  indent = ' ' * _INDENT
+  mock_lines = [
+    "%sMOCK_METHOD0(Die, void());" % indent,
+    "%svirtual ~%s() { Die(); }" % (indent, class_name)
+  ]
+  for line in mock_lines:
+    output_lines.append(line)
+
+
 def _GenerateMethods(output_lines, source, class_node):
   function_type = (ast.FUNCTION_VIRTUAL | ast.FUNCTION_PURE_VIRTUAL |
                    ast.FUNCTION_OVERRIDE)
@@ -150,7 +160,7 @@ def is_interface(node):
     return True
 
 
-def _GenerateMocks(filename, source, ast_list, desired_class_names):
+def _GenerateMocks(filename, source, ast_list, desired_class_names, mock_destructors):
   processed_class_names = set()
   lines = []
   for node in ast_list:
@@ -178,12 +188,16 @@ def _GenerateMocks(filename, source, ast_list, desired_class_names):
         parent_name += '<' + ', '.join(template_args) + '>'
 
       # Add the class prolog.
-      lines.append('class Mock%s : public %s {'  # }
-                   % (class_name, parent_name))
+      mock_class_name = "Mock%s" % class_name;
+      lines.append('class %s : public %s {'  # }
+                   % (mock_class_name, parent_name))
       lines.append('%spublic:' % (' ' * (_INDENT // 2)))
 
       # Add all the methods.
       _GenerateMethods(lines, source, class_node)
+
+      if mock_destructors:
+        _GenerateDestructor(lines, mock_class_name)
 
       # Close the class.
       if lines:
@@ -229,9 +243,15 @@ def main(argv=sys.argv):
     sys.stderr.write('Unable to use indent of %s\n' % os.environ.get('INDENT'))
 
   filename = argv[1]
+  mock_destructors = False
   desired_class_names = None  # None means all classes in the source file.
   if len(argv) >= 3:
-    desired_class_names = set(argv[2:])
+    desired_classes_start = 2
+    if argv[2] == "-d":
+      desired_classes_start += 1
+      mock_destructors = True
+
+    desired_class_names = set(argv[desired_classes_start:])
   source = utils.ReadFile(filename)
   if source is None:
     return 1
@@ -245,7 +265,7 @@ def main(argv=sys.argv):
     # An error message was already printed since we couldn't parse.
     sys.exit(1)
   else:
-    lines = _GenerateMocks(filename, source, entire_ast, desired_class_names)
+    lines = _GenerateMocks(filename, source, entire_ast, desired_class_names, mock_destructors)
     sys.stdout.write('\n'.join(lines))
 
 
