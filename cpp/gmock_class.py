@@ -106,27 +106,23 @@ def _GenerateMethods(output_lines, source, class_node):
 
       args = ''
       if node.parameters:
-        # Due to the parser limitations, it is impossible to keep comments
-        # while stripping the default parameters.  When defaults are
-        # present, we choose to strip them and comments (and produce
-        # compilable code).
-        # TODO(nnorwitz@google.com): Investigate whether it is possible to
-        # preserve parameter name when reconstructing parameter text from
-        # the AST.
-        if len([param for param in node.parameters if param.default]) > 0:
-          args = ', '.join(param.ToString() for param in node.parameters)
-        else:
-          # Get the full text of the parameters from the start
-          # of the first parameter to the end of the last parameter.
-          start = node.parameters[0].start
-          end = node.parameters[-1].end
+        args_list = []
+        for param in node.parameters:
+          param_string = source[param.start:param.end]
           # Remove // comments.
-          args_strings = re.sub(r'//.*', '', source[start:end])
-          # Condense multiple spaces and eliminate newlines putting the
-          # parameters together on a single line.  Ensure there is a
-          # space in an argument which is split by a newline without
-          # intervening whitespace, e.g.: int\nBar
-          args = re.sub('  +', ' ', args_strings.replace('\n', ' '))
+          param_string = re.sub(r'//.*', '', param_string)
+          # Remove default value
+          if param.default:
+            pos = param_string.find("=")
+            assert pos >= 0
+            param_string = param_string[:pos]
+          args_list.append(param_string.strip())
+        args_strings = ', '.join(args_list)
+        # Condense multiple spaces and eliminate newlines putting the
+        # parameters together on a single line.  Ensure there is a
+        # space in an argument which is split by a newline without
+        # intervening whitespace, e.g.: int\nBar
+        args = re.sub('  +', ' ', args_strings.replace('\n', ' '))
 
       # TODO: make formatting configurable
       # Create the mock method definition.

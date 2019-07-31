@@ -221,15 +221,12 @@ class Parameter(Node):
         # TODO(nnorwitz): handle namespaces, etc.
         return self.type.name == node.name
 
-    def ToString(self, debug=False):
-        name = str(self.type) if debug else self.type.ToString()
+    def __str__(self):
+        name = str(self.type)
         suffix = '%s %s' % (name, self.name)
         if self.default:
             suffix += ' = ' + ''.join([d.name for d in self.default])
-        return suffix
-
-    def __str__(self):
-        return self._StringHelper(self.__class__.__name__, self.ToString(True))
+        return self._StringHelper(self.__class__.__name__, suffix)
 
 
 class _GenericDeclaration(Node):
@@ -430,7 +427,7 @@ class Type(_GenericDeclaration):
         self.pointer = pointer
         self.array = array
 
-    def ToString(self):
+    def __str__(self):
         prefix = ''
         if self.modifiers:
             prefix = ' '.join(self.modifiers) + ' '
@@ -444,11 +441,7 @@ class Type(_GenericDeclaration):
             suffix += '*'
         if self.array:
             suffix += '[]'
-
-        return suffix
-
-    def __str__(self):
-        return self._TypeStringHelper(self.ToString())
+        return self._TypeStringHelper(suffix)
 
     # By definition, Is* are always False.  A Type can only exist in
     # some sort of variable declaration, parameter, or return value.
