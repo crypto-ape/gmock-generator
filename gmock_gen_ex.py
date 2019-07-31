@@ -33,19 +33,23 @@ def is_subdir(dir, dir_list):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description="Utility to generate mockups for all c++ interfaces in the specified directory.")
+    parser = argparse.ArgumentParser(description=
+                                     "Utility to generate mockups for all c++ interfaces in the specified directory.")
     parser.add_argument('input_path', metavar='INPUT', type=str, nargs=1, help='Input directory path')
     parser.add_argument('output_path', metavar='OUTPUT', type=str, nargs=1, help='Output directory path')
     parser.add_argument('-E', metavar='EXCLUDE', nargs='*', help='Exclude path from generation')
     parser.add_argument('-j', action='store_true', help='Junk paths (do not make directories)')
+    parser.add_argument('-d', action='store_true', help='Mock destructor (using \'Die pattern\')')
     args = parser.parse_args()
 
     #TODO: fix problem when input file doesn't end with (back)slash
+    #TODO: add fleg to clean output directory before mockup files generation
 
     input_path = args.input_path[0]
     output_path = args.output_path[0]
     exclude_paths = [os.path.normpath(exclude) for exclude in args.E] if args.E else None
     create_directories = not args.j
+    mock_destructors = args.d
 
     for r, d, f in os.walk(input_path):
         relative_path = os.path.normpath(r[len(input_path):])
@@ -66,7 +70,11 @@ if __name__ == '__main__':
             sys.stdout = output = StringIO()
 
             try:
-                gmock_class.main(["../gmock_class", input_filepath])
+                params = ["../gmock_class", input_filepath]
+                if mock_destructors:
+                    params.append("-d")
+
+                gmock_class.main(params)
             except SystemExit as e:
                 pass
 
