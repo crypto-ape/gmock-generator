@@ -57,6 +57,23 @@ def _GenerateDestructor(output_lines, class_name):
   for line in mock_lines:
     output_lines.append(line)
 
+def _GenerateTemplateArgs(node):
+  if len(node.templated_types):
+    result = ""
+    template_args = [_GenerateTemplateArgs(arg) for arg in node.templated_types]
+    if template_args:
+      result += '<' + ', '.join(template_args) + '>'
+    return result
+  else:
+    return node.name
+
+
+def GenerateTemplateArgs(node):
+  if len(node.return_type.templated_types):
+    return _GenerateTemplateArgs(node.return_type)
+  else:
+    return ""
+
 
 def _GenerateMethods(output_lines, source, class_node):
   function_type = (ast.FUNCTION_VIRTUAL | ast.FUNCTION_PURE_VIRTUAL |
@@ -80,15 +97,13 @@ def _GenerateMethods(output_lines, source, class_node):
         if node.return_type.modifiers:
           modifiers = ' '.join(node.return_type.modifiers) + ' '
         return_type = modifiers + node.return_type.name
-        template_args = [arg.name for arg in node.return_type.templated_types]
-        if template_args:
-          return_type += '<' + ', '.join(template_args) + '>'
-          if len(template_args) > 1:
-            for line in [
-                '// The following line won\'t really compile, as the return',
-                '// type has multiple template arguments.  To fix it, use a',
-                '// typedef for the return type.']:
-              output_lines.append(indent + line)
+        return_type += GenerateTemplateArgs(node)
+        if len(node.return_type.templated_types) > 1:
+          for line in [
+              '// The following line won\'t really compile, as the return',
+              '// type has multiple template arguments.  To fix it, use a',
+              '// typedef for the return type.']:
+            output_lines.append(indent + line)
         if node.return_type.pointer:
           return_type += '*'
         if node.return_type.reference:
@@ -106,27 +121,23 @@ def _GenerateMethods(output_lines, source, class_node):
 
       args = ''
       if node.parameters:
-        # Due to the parser limitations, it is impossible to keep comments
-        # while stripping the default parameters.  When defaults are
-        # present, we choose to strip them and comments (and produce
-        # compilable code).
-        # TODO(nnorwitz@google.com): Investigate whether it is possible to
-        # preserve parameter name when reconstructing parameter text from
-        # the AST.
-        if len([param for param in node.parameters if param.default]) > 0:
-          args = ', '.join(param.ToString() for param in node.parameters)
-        else:
-          # Get the full text of the parameters from the start
-          # of the first parameter to the end of the last parameter.
-          start = node.parameters[0].start
-          end = node.parameters[-1].end
+        args_list = []
+        for param in node.parameters:
+          param_string = source[param.start:param.end]
           # Remove // comments.
-          args_strings = re.sub(r'//.*', '', source[start:end])
-          # Condense multiple spaces and eliminate newlines putting the
-          # parameters together on a single line.  Ensure there is a
-          # space in an argument which is split by a newline without
-          # intervening whitespace, e.g.: int\nBar
-          args = re.sub('  +', ' ', args_strings.replace('\n', ' '))
+          param_string = re.sub(r'//.*', '', param_string)
+          # Remove default value
+          if param.default:
+            pos = param_string.find("=")
+            assert pos >= 0
+            param_string = param_string[:pos]
+          args_list.append(param_string.strip())
+        args_strings = ', '.join(args_list)
+        # Condense multiple spaces and eliminate newlines putting the
+        # parameters together on a single line.  Ensure there is a
+        # space in an argument which is split by a newline without
+        # intervening whitespace, e.g.: int\nBar
+        args = re.sub('  +', ' ', args_strings.replace('\n', ' '))
 
       # TODO: make formatting configurable
       # Create the mock method definition.
