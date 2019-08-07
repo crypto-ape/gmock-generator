@@ -57,6 +57,23 @@ def _GenerateDestructor(output_lines, class_name):
   for line in mock_lines:
     output_lines.append(line)
 
+def _GenerateTemplateArgs(node):
+  if len(node.templated_types):
+    result = ""
+    template_args = [_GenerateTemplateArgs(arg) for arg in node.templated_types]
+    if template_args:
+      result += '<' + ', '.join(template_args) + '>'
+    return result
+  else:
+    return node.name
+
+
+def GenerateTemplateArgs(node):
+  if len(node.return_type.templated_types):
+    return _GenerateTemplateArgs(node.return_type)
+  else:
+    return ""
+
 
 def _GenerateMethods(output_lines, source, class_node):
   function_type = (ast.FUNCTION_VIRTUAL | ast.FUNCTION_PURE_VIRTUAL |
@@ -80,15 +97,13 @@ def _GenerateMethods(output_lines, source, class_node):
         if node.return_type.modifiers:
           modifiers = ' '.join(node.return_type.modifiers) + ' '
         return_type = modifiers + node.return_type.name
-        template_args = [arg.name for arg in node.return_type.templated_types]
-        if template_args:
-          return_type += '<' + ', '.join(template_args) + '>'
-          if len(template_args) > 1:
-            for line in [
-                '// The following line won\'t really compile, as the return',
-                '// type has multiple template arguments.  To fix it, use a',
-                '// typedef for the return type.']:
-              output_lines.append(indent + line)
+        return_type += GenerateTemplateArgs(node)
+        if len(node.return_type.templated_types) > 1:
+          for line in [
+              '// The following line won\'t really compile, as the return',
+              '// type has multiple template arguments.  To fix it, use a',
+              '// typedef for the return type.']:
+            output_lines.append(indent + line)
         if node.return_type.pointer:
           return_type += '*'
         if node.return_type.reference:
