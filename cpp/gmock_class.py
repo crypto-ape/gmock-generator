@@ -57,22 +57,13 @@ def _GenerateDestructor(output_lines, class_name):
   for line in mock_lines:
     output_lines.append(line)
 
-def _GenerateTemplateArgs(node):
-  if len(node.templated_types):
-    result = ""
-    template_args = [_GenerateTemplateArgs(arg) for arg in node.templated_types]
+
+def GenerateReturnType(node):
+    result = node.name
+    template_args = [GenerateReturnType(arg) for arg in node.templated_types]
     if template_args:
       result += '<' + ', '.join(template_args) + '>'
     return result
-  else:
-    return node.name
-
-
-def GenerateTemplateArgs(node):
-  if len(node.return_type.templated_types):
-    return _GenerateTemplateArgs(node.return_type)
-  else:
-    return ""
 
 
 def _GenerateMethods(output_lines, source, class_node):
@@ -96,8 +87,7 @@ def _GenerateMethods(output_lines, source, class_node):
         modifiers = ''
         if node.return_type.modifiers:
           modifiers = ' '.join(node.return_type.modifiers) + ' '
-        return_type = modifiers + node.return_type.name
-        return_type += GenerateTemplateArgs(node)
+        return_type = modifiers + GenerateReturnType(node.return_type)
         if len(node.return_type.templated_types) > 1:
           for line in [
               '// The following line won\'t really compile, as the return',
